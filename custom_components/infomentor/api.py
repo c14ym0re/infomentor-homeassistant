@@ -105,8 +105,20 @@ class InfomentorApi:
                 response.release()
         raise CannotConnect("för många omdirigeringar")
 
-    async def _post_hub(self, path: str, body: Any | None = None, *, _retried: bool = False) -> Any:
-        """POST mot en hub-endpoint. Tom body = död session."""
+    async def _post_hub(
+        self,
+        path: str,
+        body: Any | None = None,
+        *,
+        _retried: bool = False,
+        empty_ok: bool = False,
+    ) -> Any:
+        """POST mot en hub-endpoint. Tom body = död session.
+
+        `empty_ok` för endpoints där tomt svar är ett normalt svar och inte en
+        död session (se `async_plan_tasks`) — annars blir koordinatorn lurad att
+        logga in och hämta allt en gång till, varje gång.
+        """
         headers = {
             "Accept": "application/json, text/javascript, */*; q=0.01",
             "Content-Type": "application/json",
@@ -136,9 +148,11 @@ class InfomentorApi:
             )
             if location and not _retried:
                 await self._follow(target)
-                return await self._post_hub(path, body, _retried=True)
+                return await self._post_hub(path, body, _retried=True, empty_ok=empty_ok)
             raise InvalidAuth(f"{path} omdirigerade till {target}")
         if not text.strip():
+            if empty_ok:
+                return {}
             # Verifierat beteende: död session svarar 200 med tom body.
             raise InvalidAuth("tomt svar – sessionen har gått ut")
 
@@ -246,8 +260,13 @@ class InfomentorApi:
         """Uppgifterna som hör till en planering (prov, inlämningar …).
 
         Body-nyckeln måste vara `id`, som för `GetUol`.
+
+        `GetAllTasks` svarar **200 med tom body** när planeringen inte har några
+        uppgifter (verifierat mot skolplattformen 2026-09-30), så ett tomt svar här betyder
+        "inga uppgifter" — inte död session. Utan det läste koordinatorn det som
+        en utgången session och loggade in och hämtade om allt, varje cykel.
         """
-        data = await self._post_hub("/UolV2/UolV2/GetAllTasks", {"id": uol_id})
+        data = await self._post_hub("/UolV2/UolV2/GetAllTasks", {"id": uol_id}, empty_ok=True)
         return data if isinstance(data, dict) else {}
 
     async def async_plan_detail(self, uol_id: str) -> dict[str, Any]:

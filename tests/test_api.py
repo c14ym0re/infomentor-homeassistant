@@ -195,6 +195,20 @@ class TestLogin(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(InvalidAuth):
             await api._post_hub("/timetable/timetable/gettimetablelist", {})  # noqa: SLF001
 
+    async def test_empty_plan_tasks_body_means_no_assignments(self):
+        """`GetAllTasks` svarar 200 med tom body när planeringen saknar uppgifter.
+
+        Det är ett normalt svar, inte en död session: tolkades det som InvalidAuth
+        loggade koordinatorn in och hämtade allt en gång till — varje cykel.
+        """
+
+        class EmptySession(FakeSession):
+            def __init__(self):
+                super().__init__([("POST", lambda u: True, FakeResponse(200, ""))])
+
+        api = InfomentorApi(EmptySession(), "a", "b")
+        assert await api.async_plan_tasks("8593445") == {}
+
 
 if __name__ == "__main__":
     unittest.main()
