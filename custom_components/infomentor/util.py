@@ -538,17 +538,50 @@ def pe_lessons(lessons: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
 def tasks_due(
     tasks: Iterable[Mapping[str, Any]], today: date, days: int = 7
 ) -> list[dict[str, Any]]:
-    """Oavklarade uppgifter som förfaller inom `days` dagar (eller är försenade)."""
+    """Oavklarade uppgifter som förfaller idag eller inom `days` dagar framåt.
+
+    Bara framåt: en uppgift vars dag passerat är inte kommande längre, och
+    InfoMentor flaggar den inte som försenad (status står kvar på "Due"), så
+    utan den här gränsen ser gårdagens prov ut som morgondagens. Räkna dem med
+    `tasks_overdue` i stället.
+    """
     limit = today + timedelta(days=days)
     out = []
     for task in tasks or []:
         if is_done(task.get("status")):
             continue
         due = to_date(task.get("due"))
-        if due is None or due > limit:
+        if due is None or due < today or due > limit:
             continue
         out.append(dict(task))
     return sorted(out, key=lambda item: item.get("due", ""))
+
+
+def tasks_overdue(
+    tasks: Iterable[Mapping[str, Any]], today: date
+) -> list[dict[str, Any]]:
+    """Oavklarade uppgifter vars förfallodag passerat."""
+    out = []
+    for task in tasks or []:
+        if is_done(task.get("status")):
+            continue
+        due = to_date(task.get("due"))
+        if due is not None and due < today:
+            out.append(dict(task))
+    return sorted(out, key=lambda item: item.get("due", ""))
+
+
+def upcoming_assignments(
+    assignments: Iterable[Mapping[str, Any]], today: date
+) -> list[dict[str, Any]]:
+    """Planeringens kvarvarande prov och inlämningar (dagens och framåt)."""
+    out = []
+    for item in assignments or []:
+        due = to_date(item.get("due"))
+        if due is not None and due < today:
+            continue
+        out.append(dict(item))
+    return out
 
 
 def upcoming_event(calendar: Iterable[Mapping[str, Any]], today: date) -> dict[str, Any] | None:

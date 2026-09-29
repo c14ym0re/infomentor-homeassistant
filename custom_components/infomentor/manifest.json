@@ -1,13 +1,17 @@
 {
   "domain": "infomentor",
   "name": "InfoMentor",
-  "codeowners": ["@c14ym0re"],
+  "codeowners": [
+    "@c14ym0re"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/c14ym0re/infomentor-homeassistant",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/c14ym0re/infomentor-homeassistant/issues",
-  "loggers": ["custom_components.infomentor"],
+  "loggers": [
+    "custom_components.infomentor"
+  ],
   "requirements": [],
-  "version": "0.1.13"
+  "version": "0.1.14"
 }

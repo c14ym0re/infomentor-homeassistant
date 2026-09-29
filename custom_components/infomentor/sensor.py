@@ -19,6 +19,8 @@ from .util import (
     next_school_day,
     school_day_bounds,
     tasks_due,
+    tasks_overdue,
+    upcoming_assignments,
     upcoming_event,
 )
 
@@ -124,7 +126,9 @@ class AssignmentsSensor(_PupilSensor):
                 {"title": task["title"], "subject": task["subject"], "due": task["due"]}
                 for task in due
             ],
-            "overdue": sum(1 for task in due if task["overdue"]),
+            # InfoMentors egen isOverdue sätts inte när dagen passerar, så
+            # räkna själva — annars står det alltid 0.
+            "overdue": len(tasks_overdue(pupil.tasks, self._today)),
         }
 
 
@@ -201,8 +205,9 @@ class PlansSensor(_PupilSensor):
 
     State är antalet aktiva planeringar (Unit of Learning); attributet `plans`
     innehåller de icke-avslutade med titel, ämne, status, period, lärare, termin
-    och `assignments` (planeringens prov och inlämningar), så en dashboard kan
-    visa dem utan att ett anrop behövs per planering.
+    och `assignments` (planeringens kvarvarande prov och inlämningar — de som
+    redan passerat utelämnas), så en dashboard kan visa dem utan att ett anrop
+    behövs per planering.
     """
 
     _attr_translation_key = "plans"
@@ -225,7 +230,13 @@ class PlansSensor(_PupilSensor):
         pupil = self.pupil
         if pupil is None:
             return {}
-        open_plans = [plan for plan in pupil.plans if plan["state"] != "finished"]
+        # Bara kvarvarande uppgifter, så kortets "närmast" inte pekar på något
+        # som redan varit (planeringen behåller dem i arkivet).
+        open_plans = [
+            {**plan, "assignments": upcoming_assignments(plan.get("assignments"), self._today)}
+            for plan in pupil.plans
+            if plan["state"] != "finished"
+        ]
         return {
             "plans": open_plans,
             "active": sum(1 for plan in pupil.plans if plan["state"] == "active"),

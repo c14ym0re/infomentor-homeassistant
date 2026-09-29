@@ -410,6 +410,38 @@ class TestDerivation(unittest.TestCase):
         due = util.tasks_due(tasks, date(2026, 9, 28), 7)
         self.assertEqual([task["title"] for task in due], ["A"])
 
+    def test_tasks_due_ignores_the_past(self):
+        tasks = util.normalize_tasks(
+            [
+                {"id": 1, "title": "Igår", "dueDate": "2026-09-29", "status": "Due"},
+                {"id": 2, "title": "Idag", "dueDate": "2026-09-30", "status": "Due"},
+                {"id": 3, "title": "Imorgon", "dueDate": "2026-10-01", "status": "Due"},
+            ]
+        )
+        due = util.tasks_due(tasks, date(2026, 9, 30), 7)
+        self.assertEqual([task["title"] for task in due], ["Idag", "Imorgon"])
+
+    def test_tasks_overdue(self):
+        tasks = util.normalize_tasks(
+            [
+                {"id": 1, "title": "Igår", "dueDate": "2026-09-29", "status": "Due"},
+                {"id": 2, "title": "Idag", "dueDate": "2026-09-30", "status": "Due"},
+                {"id": 3, "title": "Klar igår", "dueDate": "2026-09-29", "status": "Done"},
+            ]
+        )
+        overdue = util.tasks_overdue(tasks, date(2026, 9, 30))
+        self.assertEqual([task["title"] for task in overdue], ["Igår"])
+
+    def test_upcoming_assignments(self):
+        assignments = [
+            {"title": "Gammal", "due": "2026-09-27"},
+            {"title": "Idag", "due": "2026-09-30"},
+            {"title": "Sen", "due": "2026-10-20"},
+            {"title": "Utan datum", "due": None},
+        ]
+        kept = util.upcoming_assignments(assignments, date(2026, 9, 30))
+        self.assertEqual([item["title"] for item in kept], ["Idag", "Sen", "Utan datum"])
+
     def test_upcoming_event(self):
         calendar = util.normalize_calendar(
             [
