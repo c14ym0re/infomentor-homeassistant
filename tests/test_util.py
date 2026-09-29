@@ -358,6 +358,22 @@ class TestPlans(unittest.TestCase):
         self.assertEqual([p["id"] for p in util.dedupe_plans(plans)], ["8615622", "9", "10"])
         self.assertEqual(util.dedupe_plans([]), [])
 
+    def test_plan_with_detail_har_alltid_samma_nycklar(self):
+        """HA renderar kortmallar strikt — därför får ingen nyckel saknas."""
+        plan = {"id": "1", "title": "Spanska", "subjects": ["Spanska"], "state": "active"}
+        out = util.plan_with_detail(plan)
+        for key in ("term", "start", "end", "teachers", "grade", "assignments"):
+            self.assertIn(key, out)
+        self.assertEqual(out["assignments"], [])
+        self.assertEqual(out["teachers"], [])
+
+        # Detaljen vinner över tomvärdena, men formen är densamma.
+        out2 = util.plan_with_detail(plan, {"start": "2026-08-18", "teachers": ["Erika"]})
+        self.assertEqual(out2["start"], "2026-08-18")
+        self.assertEqual(out2["teachers"], ["Erika"])
+        self.assertEqual(out2["assignments"], [])
+        self.assertEqual(sorted(out2), sorted(out))
+
 
 class TestDerivation(unittest.TestCase):
     def setUp(self):

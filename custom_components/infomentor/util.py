@@ -436,6 +436,26 @@ def dedupe_plans(plans: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+# Alla planeringar får samma nycklar — även när detaljen inte kunde hämtas.
+# Home Assistant renderar kortmallar strikt, så en mall som läser t.ex.
+# `assignments` får inte mötas av "has no attribute".
+EMPTY_PLAN_INFO: dict[str, Any] = {
+    "term": "",
+    "start": "",
+    "end": "",
+    "teachers": [],
+    "grade": "",
+    "assignments": [],
+}
+
+
+def plan_with_detail(
+    plan: Mapping[str, Any], info: Mapping[str, Any] | None = None
+) -> dict[str, Any]:
+    """Planeringsposten med fullständig form, oavsett vad detaljen gav."""
+    return {**plan, **EMPTY_PLAN_INFO, **(info or {})}
+
+
 def parse_mateo_unit(value: Any) -> str | None:
     """Tar emot en Mateo-URL eller ett id och returnerar enhets-id:t.
 

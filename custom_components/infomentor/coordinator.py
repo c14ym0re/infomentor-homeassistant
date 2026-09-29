@@ -38,6 +38,7 @@ from .util import (
     normalize_tasks,
     parse_mateo_days,
     parse_mateo_unit,
+    plan_with_detail,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -263,7 +264,7 @@ class InfomentorCoordinator(DataUpdateCoordinator[InfomentorData]):
                 else:
                     info = cached["info"]
             self._plan_ids_seen.add(plan["id"])
-            out.append({**plan, **(info or {})})
+            out.append(plan_with_detail(plan, info))
         return dedupe_plans(out)
 
     def _prune_plan_details(self) -> None:
