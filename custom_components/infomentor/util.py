@@ -378,6 +378,39 @@ def normalize_plan_detail(raw: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _as_int(value: Any) -> int:
+    """Tål strängar och skräp — delmålsräknarna kan komma som text."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def normalize_plan_tasks(raw: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """uolv2/GetAllTasks -> uppgifterna som hör till planeringen.
+
+    Trimmade (id, titel, förfallodag, status) och sorterade på förfallodatum —
+    en dashboard behöver sällan mer, och attributen ska hållas små. Delmålen
+    följer med som "2/3" när planeringen använder dem.
+    """
+    out: list[dict[str, Any]] = []
+    for task in raw.get("tasks") or []:
+        if not isinstance(task, Mapping):
+            continue
+        item: dict[str, Any] = {
+            "id": str(task.get("id") or ""),
+            "title": str(task.get("title") or "").strip(),
+            "due": day_of(task.get("dueDate")),
+            "status": str(task.get("status") or ""),
+        }
+        total = _as_int(task.get("milestoneCount"))
+        if total > 0:
+            item["milestones"] = f"{_as_int(task.get('milestonesComplete'))}/{total}"
+        out.append(item)
+    out.sort(key=lambda task: task["due"] or "9999")
+    return out
+
+
 def parse_mateo_unit(value: Any) -> str | None:
     """Tar emot en Mateo-URL eller ett id och returnerar enhets-id:t.
 

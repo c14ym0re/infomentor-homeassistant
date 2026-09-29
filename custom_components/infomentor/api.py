@@ -242,6 +242,14 @@ class InfomentorApi:
         data = await self._post_hub("/learnlog/learnlog/appData", {})
         return data if isinstance(data, dict) else {}
 
+    async def async_plan_tasks(self, uol_id: str) -> dict[str, Any]:
+        """Uppgifterna som hör till en planering (prov, inlämningar …).
+
+        Body-nyckeln måste vara `id`, som för `GetUol`.
+        """
+        data = await self._post_hub("/UolV2/UolV2/GetAllTasks", {"id": uol_id})
+        return data if isinstance(data, dict) else {}
+
     async def async_plan_detail(self, uol_id: str) -> dict[str, Any]:
         """En planerings innehåll (översikt, pedagogisk planering, kriterier).
 

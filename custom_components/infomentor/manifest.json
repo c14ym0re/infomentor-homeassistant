@@ -9,5 +9,5 @@
   "issue_tracker": "https://github.com/c14ym0re/infomentor-homeassistant/issues",
   "loggers": ["custom_components.infomentor"],
   "requirements": [],
-  "version": "0.1.10"
+  "version": "0.1.11"
 }

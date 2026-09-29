@@ -50,16 +50,21 @@ Learning"):
 
 - **state** är antalet **aktiva** planeringar
 - attributet **`plans`** innehåller de icke‑avslutade:
-  `{id, title, subjects, state, start, end, teachers, term, grade}`
+  `{id, title, subjects, state, start, end, teachers, term, grade, assignments}`
 - `state` är `active`, `notstarted` (planerad men inte startad) eller `finished`
   — avslutade ligger inte med i `plans`, men räknas i attributet `finished`
 - `start`/`end` är ISO‑datum, `teachers` en lista med namn
+- `assignments` är planeringens **prov och inlämningar**, sorterade på
+  förfallodatum: `{id, title, due, status}` (och `milestones: "2/3"` när
+  planeringen använder delmål). Samma uppgifter som `…_assignments` — här som
+  koppling till arbetsområdet.
 
 ```yaml
 type: markdown
 content: |
   {%- for p in (state_attr('sensor.anna_plans','plans') or []) %}
-  - **{{ p.subjects | join(', ') or 'Planering' }}** — {{ p.title }} · {{ p.start[:10] }}–{{ p.end[:10] }}{% if p.teachers %} · {{ p.teachers[0] }}{% endif %}
+  - **{{ p.subjects | join(', ') or 'Planering' }}** — {{ p.title }} · {{ p.start[:10] }}–{{ p.end[:10] }}{% if p.teachers %} · {{ p.teachers[0] }}{% endif %}{% if p.assignments %}
+    ↳ {{ p.assignments | length }} uppgift{{ 'er' if (p.assignments | length) != 1 }}{% if p.assignments[0].due %} · närmast: {{ p.assignments[0].title }} ({{ p.assignments[0].due[8:10] }}/{{ p.assignments[0].due[5:7] | int }}){% endif %}{% endif %}
   {%- endfor %}
 ```
 

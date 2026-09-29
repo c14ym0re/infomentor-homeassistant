@@ -174,7 +174,8 @@ views:
 
               {%- if p %}
               {%- for x in p %}
-              - **{{ x.subjects | join(', ') or 'Planering' }}** — {{ x.title }}{% if x.start %} · {{ (x.start | as_datetime).strftime('%-d/%-m') }}–{{ (x.end | as_datetime).strftime('%-d/%-m') }}{% endif %}{% if x.teachers %} · {{ x.teachers[0] }}{% if x.teachers | length > 1 %} +{{ x.teachers | length - 1 }}{% endif %}{% endif %}{% if x.state == 'notstarted' %} _(ej startad)_{% endif %}
+              - **{{ x.subjects | join(', ') or 'Planering' }}** — {{ x.title }}{% if x.start %} · {{ (x.start | as_datetime).strftime('%-d/%-m') }}–{{ (x.end | as_datetime).strftime('%-d/%-m') }}{% endif %}{% if x.teachers %} · {{ x.teachers[0] }}{% if x.teachers | length > 1 %} +{{ x.teachers | length - 1 }}{% endif %}{% endif %}{% if x.state == 'notstarted' %} _(ej startad)_{% endif %}{% if x.assignments %}
+                ↳ {{ x.assignments | length }} uppgift{{ 'er' if (x.assignments | length) != 1 }}{% if x.assignments[0].due %} · närmast: {{ x.assignments[0].title }} ({{ (x.assignments[0].due | as_datetime).strftime('%-d/%-m') }}){% endif %}{% endif %}
               {%- endfor %}
               {%- else %}
               *Inga aktiva planeringar.*
@@ -186,7 +187,8 @@ views:
 
               {%- if p %}
               {%- for x in p %}
-              - **{{ x.subjects | join(', ') or 'Planering' }}** — {{ x.title }}{% if x.start %} · {{ (x.start | as_datetime).strftime('%-d/%-m') }}–{{ (x.end | as_datetime).strftime('%-d/%-m') }}{% endif %}{% if x.teachers %} · {{ x.teachers[0] }}{% if x.teachers | length > 1 %} +{{ x.teachers | length - 1 }}{% endif %}{% endif %}{% if x.state == 'notstarted' %} _(ej startad)_{% endif %}
+              - **{{ x.subjects | join(', ') or 'Planering' }}** — {{ x.title }}{% if x.start %} · {{ (x.start | as_datetime).strftime('%-d/%-m') }}–{{ (x.end | as_datetime).strftime('%-d/%-m') }}{% endif %}{% if x.teachers %} · {{ x.teachers[0] }}{% if x.teachers | length > 1 %} +{{ x.teachers | length - 1 }}{% endif %}{% endif %}{% if x.state == 'notstarted' %} _(ej startad)_{% endif %}{% if x.assignments %}
+                ↳ {{ x.assignments | length }} uppgift{{ 'er' if (x.assignments | length) != 1 }}{% if x.assignments[0].due %} · närmast: {{ x.assignments[0].title }} ({{ (x.assignments[0].due | as_datetime).strftime('%-d/%-m') }}){% endif %}{% endif %}
               {%- endfor %}
               {%- else %}
               *Inga aktiva planeringar.*
@@ -198,7 +200,8 @@ views:
 
               {%- if p %}
               {%- for x in p %}
-              - **{{ x.subjects | join(', ') or 'Planering' }}** — {{ x.title }}{% if x.start %} · {{ (x.start | as_datetime).strftime('%-d/%-m') }}–{{ (x.end | as_datetime).strftime('%-d/%-m') }}{% endif %}{% if x.teachers %} · {{ x.teachers[0] }}{% if x.teachers | length > 1 %} +{{ x.teachers | length - 1 }}{% endif %}{% endif %}{% if x.state == 'notstarted' %} _(ej startad)_{% endif %}
+              - **{{ x.subjects | join(', ') or 'Planering' }}** — {{ x.title }}{% if x.start %} · {{ (x.start | as_datetime).strftime('%-d/%-m') }}–{{ (x.end | as_datetime).strftime('%-d/%-m') }}{% endif %}{% if x.teachers %} · {{ x.teachers[0] }}{% if x.teachers | length > 1 %} +{{ x.teachers | length - 1 }}{% endif %}{% endif %}{% if x.state == 'notstarted' %} _(ej startad)_{% endif %}{% if x.assignments %}
+                ↳ {{ x.assignments | length }} uppgift{{ 'er' if (x.assignments | length) != 1 }}{% if x.assignments[0].due %} · närmast: {{ x.assignments[0].title }} ({{ (x.assignments[0].due | as_datetime).strftime('%-d/%-m') }}){% endif %}{% endif %}
               {%- endfor %}
               {%- else %}
               *Inga aktiva planeringar.*

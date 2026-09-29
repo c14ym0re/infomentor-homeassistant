@@ -32,6 +32,7 @@ from .util import (
     normalize_news,
     normalize_notifications,
     normalize_plan_detail,
+    normalize_plan_tasks,
     normalize_plans,
     normalize_tasks,
     parse_mateo_days,
@@ -222,11 +223,11 @@ class InfomentorCoordinator(DataUpdateCoordinator[InfomentorData]):
     async def _with_plan_details(
         self, plans: list[dict[str, Any]], *, strict: bool
     ) -> list[dict[str, Any]]:
-        """Fyller på öppna planeringar med period, lärare och etiketter.
+        """Fyller på öppna planeringar med period, lärare och uppgifter.
 
-        Detaljen kostar ett anrop per planering och ändras sällan, så den cachas
-        i `PLAN_DETAIL_TTL_HOURS`. Avslutade planeringar visas ändå inte, så de
-        får ingen detalj.
+        Detaljen kostar ett anrop per planering (och ett till för uppgifterna)
+        och ändras sällan, så den cachas i `PLAN_DETAIL_TTL_HOURS`. Avslutade
+        planeringar visas ändå inte, så de får ingen detalj.
         """
         out: list[dict[str, Any]] = []
         now = monotonic()
@@ -244,6 +245,19 @@ class InfomentorCoordinator(DataUpdateCoordinator[InfomentorData]):
                     # Tomt svar = inte cacha, så vi försöker igen nästa gång.
                     if detail:
                         info = normalize_plan_detail(detail)
+                        # Uppgifterna bär själva provet/läxan; här behövs bara
+                        # kopplingen till planeringen, så ett fel får inte fälla
+                        # hela uppdateringen.
+                        assignments = normalize_plan_tasks(
+                            await self._safe(
+                                f"planeringsuppgifter ({plan['title'] or plan['id']})",
+                                self.api.async_plan_tasks(plan["id"]),
+                                {},
+                                strict=False,
+                            )
+                        )
+                        if assignments:
+                            info["assignments"] = assignments
                         self._plan_details[plan["id"]] = {"at": now, "info": info}
                 else:
                     info = cached["info"]

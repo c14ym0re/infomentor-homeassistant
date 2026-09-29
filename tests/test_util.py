@@ -309,6 +309,37 @@ class TestPlans(unittest.TestCase):
             {"term": "", "start": "", "end": "", "grade": "", "teachers": []},
         )
 
+    def test_normalize_plan_tasks(self):
+        raw = {
+            "type": "task",
+            "hasMore": False,
+            "tasks": [
+                {
+                    "id": 3,
+                    "title": " Loggbok v.37 ",
+                    "dueDate": "2026-09-11T00:00:00",
+                    "status": "active",
+                    "milestoneCount": 0,
+                },
+                {
+                    "id": 1,
+                    "title": "Prov: Samhällsekonomi",
+                    "dueDate": "2026-10-23",
+                    "status": "active",
+                    "milestoneCount": 3,
+                    "milestonesComplete": 2,
+                },
+                {"id": 2, "title": "Utan datum", "dueDate": None, "status": "done"},
+                None,
+            ],
+        }
+        tasks = util.normalize_plan_tasks(raw)
+        self.assertEqual([t["id"] for t in tasks], ["3", "1", "2"])
+        self.assertEqual(tasks[0]["title"], "Loggbok v.37")
+        self.assertEqual(tasks[1]["milestones"], "2/3")
+        self.assertNotIn("milestones", tasks[0])
+        self.assertEqual(util.normalize_plan_tasks({}), [])
+
 
 class TestDerivation(unittest.TestCase):
     def setUp(self):
