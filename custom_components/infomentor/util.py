@@ -411,6 +411,31 @@ def normalize_plan_tasks(raw: Mapping[str, Any]) -> list[dict[str, Any]]:
     return out
 
 
+def dedupe_plans(plans: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Slår ihop identiska planeringar.
+
+    Lärare publicerar ibland samma planering två gånger — samma titel, ämne,
+    status, period och lärare men olika id. För en förälder är det en rad, och
+    räkningen i sensorn ska stämma med listan.
+    """
+    out: list[dict[str, Any]] = []
+    seen: set[tuple[Any, ...]] = set()
+    for plan in plans:
+        key = (
+            str(plan.get("title") or ""),
+            tuple(plan.get("subjects") or ()),
+            str(plan.get("state") or ""),
+            str(plan.get("start") or ""),
+            str(plan.get("end") or ""),
+            tuple(plan.get("teachers") or ()),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(dict(plan))
+    return out
+
+
 def parse_mateo_unit(value: Any) -> str | None:
     """Tar emot en Mateo-URL eller ett id och returnerar enhets-id:t.
 

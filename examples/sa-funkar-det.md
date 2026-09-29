@@ -58,6 +58,9 @@ Learning"):
   förfallodatum: `{id, title, due, status}` (och `milestones: "2/3"` när
   planeringen använder delmål). Samma uppgifter som `…_assignments` — här som
   koppling till arbetsområdet.
+- **Identiska planeringar slås ihop**: lärare publicerar ibland samma plan två
+  gånger (samma titel, ämne, status, period och lärare, men olika id). Då visas
+  en rad, så `state`/`active` stämmer med listan.
 
 ```yaml
 type: markdown

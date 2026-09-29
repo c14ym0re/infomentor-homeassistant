@@ -24,7 +24,7 @@ One device per child, plus a hub device:
 | `sensor.<child>_assignments_due` | sensor | number of assignments due within 7 days, with the list as an attribute |
 | `sensor.<child>_next_event` | sensor | next calendar event (test, trip, …) |
 | `sensor.<child>_weekly_letter` | sensor | the teacher's **weekly letter** (learnlog): latest title, with full text, subject, date and attachments as attributes |
-| `sensor.<child>_plans` | sensor | number of **plans** (Unit of Learning) in progress, with the open ones — title, subject, period, teacher, state and their `assignments` (the tests and homework linked to the plan) — as attributes |
+| `sensor.<child>_plans` | sensor | number of **plans** (Unit of Learning) in progress, with the open ones — title, subject, period, teacher, state and their `assignments` (the tests and homework linked to the plan) — as attributes. Identical duplicates (same title, subject, period and teachers) are merged into one |
 | `binary_sensor.<child>_pe_next_school_day` | binary sensor | on when PE/gymnastics is coming up — *remember the gym bag* |
 | `sensor.infomentor_school_news` | sensor | school news: count, with the latest 10 as attributes |
 | `sensor.infomentor_school_lunch` | sensor | school lunch (optional, from Mateo) |

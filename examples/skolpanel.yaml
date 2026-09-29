@@ -24,7 +24,7 @@ views:
             heading_style: title
             icon: mdi:school
           - type: markdown
-            content: "{{ now().strftime('%A %-d %B') | capitalize }}"
+            content: "{% set n = now() %}{% set wd = ['måndag','tisdag','onsdag','torsdag','fredag','lördag','söndag'] %}{% set mo = ['januari','februari','mars','april','maj','juni','juli','augusti','september','oktober','november','december'] %}{{ wd[n.weekday()] | capitalize }} {{ n.day }} {{ mo[n.month - 1] }}"
           - type: conditional
             conditions:
               - condition: or
@@ -140,7 +140,7 @@ views:
               {{ e[0].text[:600] }}{% if e[0].text | length > 600 %} …{% endif %}
               {% if e[0].attachments %}
               📎 {{ e[0].attachments | join(', ') }}{% endif %}{% else %}
-              *Inget veckobrev ännu.*{% endif %}
+              *Inget veckobrev i lärloggen.*{% endif %}
           - type: markdown
             content: >-
               {% set e = (state_attr('sensor.bo_weekly_letter','entries') or []) %}### 🧒 Bo{% if e %} · {{ e[0].title }}{% endif %}
@@ -149,7 +149,7 @@ views:
               {{ e[0].text[:600] }}{% if e[0].text | length > 600 %} …{% endif %}
               {% if e[0].attachments %}
               📎 {{ e[0].attachments | join(', ') }}{% endif %}{% else %}
-              *Inget veckobrev ännu.*{% endif %}
+              *Inget veckobrev i lärloggen.*{% endif %}
           - type: markdown
             content: >-
               {% set e = (state_attr('sensor.lisa_weekly_letter','entries') or []) %}### 🧒 Lisa{% if e %} · {{ e[0].title }}{% endif %}
@@ -158,7 +158,7 @@ views:
               {{ e[0].text[:600] }}{% if e[0].text | length > 600 %} …{% endif %}
               {% if e[0].attachments %}
               📎 {{ e[0].attachments | join(', ') }}{% endif %}{% else %}
-              *Inget veckobrev ännu.*{% endif %}
+              *Inget veckobrev i lärloggen.*{% endif %}
 
       # --- Planeringar (Unit of Learning) — full bredd, ett kort per barn --
       - type: grid
@@ -169,8 +169,8 @@ views:
             icon: mdi:book-open-page-variant-outline
           - type: markdown
             content: |
-              {%- set p = state_attr('sensor.anna_plans','plans') or [] %}
-              **Anna{% if p %} · {{ p | length }} pågående{% endif %}**
+              {%- set p = state_attr('sensor.anna_plans','plans') or [] %}{% set aktiva = p | selectattr('state','eq','active') | list | length %}
+              **Anna{% if p %} · {{ aktiva }} pågående{% if (p | length) > aktiva %} + {{ (p | length) - aktiva }} kommande{% endif %}{% endif %}**
 
               {%- if p %}
               {%- for x in p %}
@@ -182,8 +182,8 @@ views:
               {%- endif %}
           - type: markdown
             content: |
-              {%- set p = state_attr('sensor.bo_plans','plans') or [] %}
-              **Bo{% if p %} · {{ p | length }} pågående{% endif %}**
+              {%- set p = state_attr('sensor.bo_plans','plans') or [] %}{% set aktiva = p | selectattr('state','eq','active') | list | length %}
+              **Bo{% if p %} · {{ aktiva }} pågående{% if (p | length) > aktiva %} + {{ (p | length) - aktiva }} kommande{% endif %}{% endif %}**
 
               {%- if p %}
               {%- for x in p %}
@@ -195,8 +195,8 @@ views:
               {%- endif %}
           - type: markdown
             content: |
-              {%- set p = state_attr('sensor.lisa_plans','plans') or [] %}
-              **Lisa{% if p %} · {{ p | length }} pågående{% endif %}**
+              {%- set p = state_attr('sensor.lisa_plans','plans') or [] %}{% set aktiva = p | selectattr('state','eq','active') | list | length %}
+              **Lisa{% if p %} · {{ aktiva }} pågående{% if (p | length) > aktiva %} + {{ (p | length) - aktiva }} kommande{% endif %}{% endif %}**
 
               {%- if p %}
               {%- for x in p %}

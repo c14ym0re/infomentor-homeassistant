@@ -24,6 +24,7 @@ from .const import (
     clamp_interval,
 )
 from .util import (
+    dedupe_plans,
     display_name,
     normalize_attendance,
     normalize_calendar,
@@ -263,7 +264,7 @@ class InfomentorCoordinator(DataUpdateCoordinator[InfomentorData]):
                     info = cached["info"]
             self._plan_ids_seen.add(plan["id"])
             out.append({**plan, **(info or {})})
-        return out
+        return dedupe_plans(out)
 
     def _prune_plan_details(self) -> None:
         """Släpper detaljer för planeringar som inte längre finns.

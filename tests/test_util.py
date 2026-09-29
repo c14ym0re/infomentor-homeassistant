@@ -340,6 +340,24 @@ class TestPlans(unittest.TestCase):
         self.assertNotIn("milestones", tasks[0])
         self.assertEqual(util.normalize_plan_tasks({}), [])
 
+    def test_dedupe_plans(self):
+        base = {
+            "title": "Spanska_En la cafetería Unidad 1C",
+            "subjects": ["Spanska"],
+            "state": "active",
+            "start": "2026-09-28",
+            "end": "2026-10-11",
+            "teachers": ["Diana Morales Guardado"],
+        }
+        plans = [
+            {**base, "id": "8615622"},
+            {**base, "id": "8615621"},  # läraren publicerade samma planering två gånger
+            {**base, "id": "9", "start": "2026-10-05"},
+            {**base, "id": "10", "teachers": ["Någon Annan"]},
+        ]
+        self.assertEqual([p["id"] for p in util.dedupe_plans(plans)], ["8615622", "9", "10"])
+        self.assertEqual(util.dedupe_plans([]), [])
+
 
 class TestDerivation(unittest.TestCase):
     def setUp(self):
