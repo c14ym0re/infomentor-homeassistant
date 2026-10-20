@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -14,11 +15,20 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import ApiError, CannotConnect, InfomentorApi, InfomentorError, InvalidAuth
+from .api import (
+    ApiError,
+    CannotConnect,
+    InfomentorApi,
+    InfomentorError,
+    InvalidAuth,
+)
 from .const import (
     CONF_ENABLE_LUNCH,
     CONF_MATEO_UNIT,
+    CONF_PASSWORD,
+    CONF_REFRESH_TOKEN,
     CONF_SCAN_INTERVAL,
+    CONF_USERNAME,
     DEFAULT_SCAN_INTERVAL_MIN,
     DOMAIN,
     clamp_interval,
@@ -82,9 +92,13 @@ class InfomentorCoordinator(DataUpdateCoordinator[InfomentorData]):
         self, hass: HomeAssistant, entry: ConfigEntry, session: aiohttp.ClientSession
     ) -> None:
         self.entry = entry
-        self.api = InfomentorApi(session, entry.data["username"], entry.data["password"])
+        self._lock = asyncio.Lock()
+        data = entry.data
+        self.api = InfomentorApi(session, data.get(CONF_USERNAME), data.get(CONF_PASSWORD))
         self._ok_calls = 0
         self._auth_skips = 0
+        # Delar hubben redan avvisat medan sessionen levde (se _safe); loggas bara en gång.
+        self._not_permitted: set[str] = set()
         # planerings-id -> {"at": monotonic(), "info": {...}}
         self._plan_details: dict[str, dict[str, Any]] = {}
         self._plan_ids_seen: set[str] = set()
@@ -119,13 +133,32 @@ class InfomentorCoordinator(DataUpdateCoordinator[InfomentorData]):
                 raise UpdateFailed(f"Kunde inte nå InfoMentor: {err2}") from err2
 
     async def _login(self) -> list[dict[str, Any]]:
-        """Logga in. Fel uppgifter → reauth; nere → försök igen."""
+        """Logga in med BankID-token om posten har en, annars med e-post och lösenord.
+
+        Fel uppgifter eller död token: reauth. Nere eller blockerad: försök igen, aldrig reauth.
+        """
         try:
+            if CONF_REFRESH_TOKEN in self.entry.data:
+                return await self._login_with_token()
             return await self.api.async_login()
         except InvalidAuth as err:
             raise ConfigEntryAuthFailed(str(err)) from err
         except CannotConnect as err:
             raise UpdateFailed(f"Kunde inte nå InfoMentor: {err}") from err
+
+    async def _login_with_token(self) -> list[dict[str, Any]]:
+        # Den roterande token har en enda ägare. Läs den inne i låset: en andra inloggning
+        # ska se den redan roterade, inte den förbrukade.
+        async with self._lock:
+            return await self.api.async_login_with_token(
+                self.entry.data[CONF_REFRESH_TOKEN], on_rotated=self._store_token
+            )
+
+    def _store_token(self, token: str) -> None:
+        """Skriv den roterade token innan något mer kan misslyckas, annars är nästa refresh död."""
+        self.hass.config_entries.async_update_entry(
+            self.entry, data={**self.entry.data, CONF_REFRESH_TOKEN: token}
+        )
 
     async def _fetch_all(
         self, pupils: list[dict[str, Any]], *, strict: bool = True
@@ -289,9 +322,15 @@ class InfomentorCoordinator(DataUpdateCoordinator[InfomentorData]):
         except CannotConnect:
             raise
         except InvalidAuth as err:
-            if strict:
+            if strict and self._ok_calls == 0:
+                # Inget har gått igenom ännu: sessionen kan vara död, logga in igen.
                 raise
-            _LOGGER.warning("InfoMentor: %s avvisades (%s) – hoppar över", label, err)
+            # Andra anrop i samma omgång gick igenom, så sessionen lever och just den här
+            # delen är inte tillåten för användaren (alla barn och skolor har inte alla
+            # funktioner). Hoppa över den; en ny inloggning hjälper inte.
+            level = logging.DEBUG if label in self._not_permitted else logging.WARNING
+            _LOGGER.log(level, "InfoMentor: %s är inte tillåten här – hoppar över (%s)", label, err)
+            self._not_permitted.add(label)
             self._auth_skips += 1
             return default
         except (ApiError, InfomentorError) as err:

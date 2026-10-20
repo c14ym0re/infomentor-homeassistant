@@ -12,6 +12,8 @@
   "loggers": [
     "custom_components.infomentor"
   ],
-  "requirements": [],
+  "requirements": [
+    "segno==1.6.6"
+  ],
   "version": "0.1.15"
 }

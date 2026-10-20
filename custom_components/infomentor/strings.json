@@ -3,14 +3,16 @@
     "step": {
       "user": {
         "title": "Connect to InfoMentor",
-        "description": "Sign in with the email and password of your InfoMentor (Mentor) account.",
+        "description": "Choose how to sign in.",
         "data": {
-          "username": "Email",
-          "password": "Password"
-        },
-        "data_description": {
-          "username": "The email address you use for InfoMentor.",
-          "password": "Your InfoMentor password. Stored locally in Home Assistant."
+          "method": "Sign-in method"
+        }
+      },
+      "municipality": {
+        "title": "Choose municipality",
+        "description": "Only municipalities with a supported BankID login are listed. More are added over time.",
+        "data": {
+          "idp": "Municipality"
         }
       },
       "reauth_confirm": {
@@ -20,16 +22,36 @@
           "username": "Email",
           "password": "Password"
         }
+      },
+      "bankid_retry": {
+        "title": "BankID login failed",
+        "description": "{detail}\n\nPress Submit to start a new BankID login."
+      },
+      "password": {
+        "title": "Email and password",
+        "description": "Sign in with the email and password of your InfoMentor (Mentor) account.",
+        "data": {
+          "username": "Email",
+          "password": "Password"
+        }
       }
     },
     "error": {
       "invalid_auth": "Invalid email or password.",
       "cannot_connect": "Could not reach InfoMentor.",
-      "unknown": "Unexpected error."
+      "unknown": "Unexpected error.",
+      "bankid_denied": "BankID login was cancelled.",
+      "bankid_timeout": "Nobody scanned the QR code in time. Try again.",
+      "bankid_page_changed": "The BankID flow was interrupted or the page changed. Try again.",
+      "bankid_failed": "The BankID login failed. Try again."
     },
     "abort": {
       "already_configured": "This account is already configured.",
       "reauth_successful": "Signed in again."
+    },
+    "progress": {
+      "bankid": "**Scan this code with the BankID app**\n\n{qr_code}\n\nOpening this page on the phone that has BankID? [Open the BankID app]({autostart_link})",
+      "bankid_starting": "{message}"
     }
   },
   "options": {
@@ -78,6 +100,14 @@
     "binary_sensor": {
       "pe_next_school_day": {
         "name": "PE next school day"
+      }
+    }
+  },
+  "selector": {
+    "method": {
+      "options": {
+        "bankid": "BankID (QR code or this device)",
+        "password": "Email and password"
       }
     }
   }

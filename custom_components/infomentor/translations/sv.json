@@ -3,14 +3,16 @@
     "step": {
       "user": {
         "title": "Anslut till InfoMentor",
-        "description": "Logga in med e-post och lösenord för ditt InfoMentor-konto (Mentor).",
+        "description": "Välj hur du vill logga in.",
         "data": {
-          "username": "E-post",
-          "password": "Lösenord"
-        },
-        "data_description": {
-          "username": "E-postadressen du använder i InfoMentor.",
-          "password": "Ditt InfoMentor-lösenord. Sparas lokalt i Home Assistant."
+          "method": "Inloggningssätt"
+        }
+      },
+      "municipality": {
+        "title": "Välj kommun",
+        "description": "Bara kommuner med stödd BankID-inloggning visas. Fler läggs till efter hand.",
+        "data": {
+          "idp": "Kommun"
         }
       },
       "reauth_confirm": {
@@ -20,16 +22,36 @@
           "username": "E-post",
           "password": "Lösenord"
         }
+      },
+      "bankid_retry": {
+        "title": "BankID-inloggningen misslyckades",
+        "description": "{detail}\n\nTryck på Skicka för att starta en ny BankID-inloggning."
+      },
+      "password": {
+        "title": "E-post och lösenord",
+        "description": "Logga in med e-post och lösenord till ditt InfoMentor-konto (Mentor).",
+        "data": {
+          "username": "E-post",
+          "password": "Lösenord"
+        }
       }
     },
     "error": {
       "invalid_auth": "Fel e-post eller lösenord.",
       "cannot_connect": "Kunde inte nå InfoMentor.",
-      "unknown": "Oväntat fel."
+      "unknown": "Oväntat fel.",
+      "bankid_denied": "BankID-inloggningen avbröts.",
+      "bankid_timeout": "Ingen skannade QR-koden i tid. Försök igen.",
+      "bankid_page_changed": "BankID-flödet avbröts eller sidan har ändrats. Försök igen.",
+      "bankid_failed": "BankID-inloggningen misslyckades. Försök igen."
     },
     "abort": {
       "already_configured": "Det här kontot är redan konfigurerat.",
       "reauth_successful": "Inloggad igen."
+    },
+    "progress": {
+      "bankid": "**Skanna koden med BankID-appen**\n\n{qr_code}\n\nÖppnar du den här sidan på telefonen som har BankID? [Öppna BankID-appen]({autostart_link})",
+      "bankid_starting": "{message}"
     }
   },
   "options": {
@@ -78,6 +100,14 @@
     "binary_sensor": {
       "pe_next_school_day": {
         "name": "Idrott nästa skoldag"
+      }
+    }
+  },
+  "selector": {
+    "method": {
+      "options": {
+        "bankid": "BankID (QR-kod eller den här enheten)",
+        "password": "E-post och lösenord"
       }
     }
   }

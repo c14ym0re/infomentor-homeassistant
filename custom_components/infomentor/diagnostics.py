@@ -11,14 +11,24 @@ from homeassistant.core import HomeAssistant
 
 from .util import lessons_on, next_school_day, school_day_bounds, tasks_due
 
-TO_REDACT = {"password", "username"}
+TO_REDACT = {"password", "username", "refresh_token"}
 
 
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> dict[str, Any]:
     """Returnerar diagnostik för en config-post."""
-    coordinator = entry.runtime_data.coordinator
+    entry_info = {
+        "title": entry.title,
+        "data": async_redact_data(dict(entry.data), TO_REDACT),
+        "options": dict(entry.options),
+    }
+    runtime = getattr(entry, "runtime_data", None)
+    if runtime is None:
+        # Posten är inte laddad (t.ex. ett misslyckat setup); bara postdata finns.
+        return {"entry": entry_info, "loaded": False}
+
+    coordinator = runtime.coordinator
     data = coordinator.data
     today = date.today()
 
@@ -29,7 +39,7 @@ async def async_get_config_entry_diagnostics(
             pupils.append(
                 {
                     "id": pupil.pupil_id,
-                    "name": pupil.name,
+                    "name": "REDACTED",
                     "lessons": len(pupil.lessons),
                     "calendar": len(pupil.calendar),
                     "tasks": len(pupil.tasks),
@@ -45,11 +55,8 @@ async def async_get_config_entry_diagnostics(
             )
 
     return {
-        "entry": {
-            "title": entry.title,
-            "data": async_redact_data(dict(entry.data), TO_REDACT),
-            "options": dict(entry.options),
-        },
+        "entry": entry_info,
+        "loaded": True,
         "last_update_success": coordinator.last_update_success,
         "last_exception": str(coordinator.last_exception)
         if coordinator.last_exception

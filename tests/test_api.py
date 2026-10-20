@@ -90,6 +90,24 @@ if AVAILABLE:
 
 
 @unittest.skipUnless(AVAILABLE, "kräver aiohttp och Home Assistant-paketet")
+class TestUnauthorizedHandler(unittest.IsolatedAsyncioTestCase):
+    async def test_the_signout_handler_redirect_is_never_followed(self):
+        """HandleUnauthorizedRequest är hubbens utloggningssida. Om vi följer omdirigeringen dit
+        loggas sessionen ut, och nästa inloggning avvisas. Det hände live mot lärloggen, som
+        inte alla barn har behörighet till."""
+        handler = HUB + "Home/Home/HandleUnauthorizedRequest"
+        session = FakeSession(
+            [("POST", lambda u: True, FakeResponse(302, location="/Home/Home/HandleUnauthorizedRequest"))]
+        )
+        api = InfomentorApi(session, "a", "b")
+        with self.assertRaises(InvalidAuth) as caught:
+            await api._post_hub("/learnlog/learnlog/appData", {})  # noqa: SLF001
+        self.assertEqual(len(session.calls), 1, session.calls)
+        self.assertIn("HandleUnauthorizedRequest", str(caught.exception))
+        self.assertNotIn(("GET", handler, None), session.calls)
+
+
+@unittest.skipUnless(AVAILABLE, "kräver aiohttp och Home Assistant-paketet")
 class TestLogin(unittest.IsolatedAsyncioTestCase):
     def _routes(self, hub_html=HUB_HTML):
         state = {"hub": 0, "mentor": 0}

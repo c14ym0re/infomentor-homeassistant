@@ -10,14 +10,28 @@ from __future__ import annotations
 
 import json
 import logging
+import secrets
 from datetime import date, timedelta
+from http.cookies import Morsel
 from time import time
 from typing import Any
 
 import aiohttp
 from yarl import URL
 
-from .const import HUB_BASE, MATEO_API, MENTOR_LOGIN
+from .bankid import post_saml_response
+from .bankid_stockholm import StockholmDriver
+from .const import HUB_BASE, IDP_STOCKHOLM_PAR, MATEO_API, MENTOR_LOGIN, USER_AGENT
+from .token_client import (
+    Blocked,
+    NetworkError,
+    TokenError,
+    TokenRevoked,
+    bridge_web_session,
+    make_aiohttp_request,
+    pair_app_token,
+    refresh_app_token,
+)
 from .util import (
     extract_oauth_token,
     extract_pupils,
@@ -25,13 +39,10 @@ from .util import (
     hidden_input,
     hidden_inputs,
 )
+from .web import CookieJar
 
 _LOGGER = logging.getLogger(__name__)
 
-USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/101.0.4951.67 Safari/537.36"
-)
 REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=30)
 MAX_HOPS = 20
 _REDIRECTS = {301, 302, 303, 307, 308}
@@ -59,14 +70,110 @@ class ApiError(InfomentorError):
     """
 
 
+class RevokedAuth(InvalidAuth):
+    """Token eller session är ogiltig (REVOKED): starta reauth.
+
+    En WAF/F5-blip (BLOCKED) ger i stället CannotConnect: försök igen, aldrig reauth.
+    """
+
+
+# Hubbens svar när ett anrop inte är tillåtet för användaren (eller sessionen dött).
+UNAUTHORIZED_HANDLER = "/Home/Home/HandleUnauthorizedRequest"
+
+# En BankID-drivrutin per IdP (se bankid.py). En ny kommun läggs till här.
+DRIVERS = {IDP_STOCKHOLM_PAR: StockholmDriver}
+
+
+def new_raw_cookie_session() -> aiohttp.ClientSession:
+    """En session utan egen cookie-jar, för flöden som skickar `Cookie` själva.
+
+    En vanlig aiohttp-jar skriver om ett explicit `Cookie`-huvud via `SimpleCookie`, som
+    citerar värden med `/`, `+` eller `=`: `Sess=ab/cd==` blir `Sess="ab/cd=="`. SiteMinders
+    och PhenixIDs sessionscookies har de tecknen, så servern känner inte igen sessionen
+    (sett live: ordern blev OK men ingen SAML-form kom). `DummyCookieJar` rör inte huvudet.
+    """
+    return aiohttp.ClientSession(cookie_jar=aiohttp.DummyCookieJar())
+
+
 class InfomentorApi:
     """Tunn klient mot hub.infomentor.se."""
 
-    def __init__(self, session: aiohttp.ClientSession, username: str, password: str) -> None:
+    def __init__(
+        self,
+        session: aiohttp.ClientSession,
+        username: str | None = None,
+        password: str | None = None,
+    ) -> None:
         self._session = session
         self._username = username
         self._password = password
         self.pupils: list[dict[str, Any]] = []
+
+    async def _enter_hub(self, jar: CookieJar, failure: type[InfomentorError], why: str) -> None:
+        """Använd webbsessionen `jar` för hubb-anropen och läs barnen ur hubbens förstasida."""
+        self._session.cookie_jar.clear()
+        for cookie in jar.all():
+            morsel = Morsel()
+            morsel.set(cookie["name"], cookie["value"], cookie["value"])
+            morsel["domain"] = cookie["domain"].lstrip(".")
+            morsel["path"] = cookie["path"]
+            self._session.cookie_jar.update_cookies({cookie["name"]: morsel})
+        _, root = await self._follow(f"{HUB_BASE}/")
+        if "selectedPupilName" not in root:
+            raise failure(why)
+        self.pupils = extract_pupils(root)
+
+    async def async_login_with_bankid(
+        self, *, idp: str, progress: Any | None = None
+    ) -> tuple[list[dict[str, Any]], str]:
+        """Logga in med BankID via kommunens IdP och returnera (barn, appens refresh-token).
+
+        Webbsessionen räcker bara ~40 min, så den paras direkt till appens roterande
+        refresh-token, den hållbara uppgiften. Kastar InvalidAuth, CannotConnect eller
+        en BankIDError.
+        """
+        driver_class = DRIVERS.get(idp)
+        if driver_class is None:
+            raise ValueError(f"BankID stöds inte för {idp}")
+        driver = driver_class()
+        async with new_raw_cookie_session() as raw:
+            request = make_aiohttp_request(raw)
+            result = await driver.run(request, progress=progress)
+            try:
+                jar = await post_saml_response(
+                    request, saml_response=result.saml_response, jar=result.jar, idp=idp
+                )
+                await self._enter_hub(jar, TokenError, "hubben avvisade BankID-sessionen")
+                token = await pair_app_token(request, jar, device_identifier=secrets.token_hex(8))
+            except TokenError as err:
+                raise InvalidAuth(str(err)) from err
+        return self.pupils, token["refresh_token"]
+
+    async def async_login_with_token(
+        self, refresh_token: str, *, on_rotated=None
+    ) -> list[dict[str, Any]]:
+        """Logga in med appens refresh-token: friska, bridga till en hubbsession, läs barnen.
+
+        `on_rotated(ny_token)` anropas innan något mer kan misslyckas (persist-before-use).
+        Kastar RevokedAuth, en InvalidAuth (token död: reauth), CannotConnect (nere eller
+        blockerad: försök igen, aldrig reauth) eller ApiError (bryggan misslyckades).
+        """
+        try:
+            token = await refresh_app_token(make_aiohttp_request(self._session), refresh_token)
+        except TokenRevoked as err:
+            raise RevokedAuth(str(err)) from err
+        except (Blocked, NetworkError) as err:
+            raise CannotConnect(str(err)) from err
+        if token["refresh_token"] != refresh_token and on_rotated is not None:
+            on_rotated(token["refresh_token"])
+
+        async with new_raw_cookie_session() as raw:
+            try:
+                jar = await bridge_web_session(make_aiohttp_request(raw), token["access_token"])
+            except TokenError as err:
+                raise ApiError(str(err)) from err
+        await self._enter_hub(jar, RevokedAuth, "hubben avvisade webbsessionen från token")
+        return self.pupils
 
     # ------------------------------------------------------------- transport
     async def _once(
@@ -146,7 +253,11 @@ class InfomentorApi:
             _LOGGER.warning(
                 "InfoMentor: %s svarade %s → %s", path, status, target.replace(HUB_BASE, "")
             )
-            if location and not _retried:
+            # HandleUnauthorizedRequest är hubbens utloggningshanterare: att följa den förstör
+            # sessionen, så en ny inloggning direkt efter (sett live) avvisas. En endpoint
+            # som en användare inte får använda omdirigerar dit lika gärna som en död
+            # session, så den följs aldrig.
+            if location and not _retried and UNAUTHORIZED_HANDLER not in target:
                 await self._follow(target)
                 return await self._post_hub(path, body, _retried=True, empty_ok=empty_ok)
             raise InvalidAuth(f"{path} omdirigerade till {target}")
